@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <title>Dessocity front-end</title>
+    <script language="javascript" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script language="javascript" type="text/javascript" src="web3.min.js"></script>
+    <script language="javascript" type="text/javascript" src="cryptozombies_abi.js"></script>
+  </head>
+  <body>
+    <div id="txStatus"></div>
+    <div id="ticket"></div>
+
+    <script>
+      var dessocity;
+      var userAccount;
+
+      function startApp() {
+        var dessocityAddress = "YOUR_CONTRACT_ADDRESS";
+        dessocity = new web3js.eth.Contract(dessocityABI, dessocityAddress);
+
+        var accountInterval = setInterval(function() {
+          if (web3.eth.accounts[0] !== userAccount) {
+            userAccount = web3.eth.accounts[0];
+            getTicketByUser(userAccount)
+            .then(displayTickets);
+          }
+        }, 100);
+
+      }
+
+      function displayZombies(ids) {
+        $("#getTicketByUser").empty();
+        for (id of ids) {
+          // Look up ticket details from our contract. Returns a `ticket` object
+          getTicketDetails(id)
+          .then(function(ticket) {
+            // Using ES6's "template literals" to inject variables into the HTML.
+            // Append each one to our #tickets div
+            $("#tickets").append(`<div class="ticket">
+              <ul>
+                <li>link: ${ticket.link}</li>
+                <li>refNo: ${ticket.refNo}</li>
+                <li>authority: ${ticket.authority}</li>
+              </ul>
+            </div>`);
+          });
+        }
+      }
+
+      function createRandomTicket(name) {
+        // This is going to take a while, so update the UI to let the user know
+        // the transaction has been sent
+        $("#txStatus").text("Creating new ticket on the blockchain. This may take a while...");
+        // Send the tx to our contract:
+        return cryptoTickets.methods.createRandomTicket(name)
+        .send({ from: userAccount })
+        .on("receipt", function(receipt) {
+          $("#txStatus").text("Successfully created " + name + "!");
+          // Transaction was accepted into the blockchain, let's redraw the UI
+          getTicketsByOwner(userAccount).then(displayTickets);
+        })
+        .on("error", function(error) {
+          // Do something to alert the user their transaction has failed
+          $("#txStatus").text(error);
+        });
+      }
+
+
+      function TicketDetails(id) {
+        return cryptoTickets.methods.Tickets(id).call()
+      }
+
+      function TicketToOwner(id) {
+        return cryptoTickets.methods.ticketToOwner(id).call()
+      }
+
+      function getTicketsByOwner(owner) {
+        return cryptoTickets.methods.getTicketsByOwner(owner).call()
+      }
+
+      window.addEventListener('load', function() {
+
+        // Checking if Web3 has been injected by the browser (Mist/MetaMask)
+        if (typeof web3 !== 'undefined') {
+          // Use Mist/MetaMask's provider
+          web3js = new Web3(web3.currentProvider);
+        } else {
+          // Handle the case where the user doesn't have Metamask installed
+          // Probably show them a message prompting them to install Metamask
+        }
+
+        // Now you can start your app & access web3 freely:
+        startApp()
+
+      })
+    </script>
+  </body>
+</html>
